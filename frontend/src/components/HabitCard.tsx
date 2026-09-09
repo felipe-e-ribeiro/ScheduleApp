@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as api from '../lib/api'
+import { ApiError } from '../lib/api'
 import { useToast } from '../context/ToastContext'
-import { daysToText, formatDateTime } from '../lib/format'
-import type { Habit, HabitStats, TodayOccurrence } from '../lib/types'
+import { daysToText, formatDateTime, formatHM, isTooEarlyToConfirm } from '../lib/format'
+import type { Habit, HabitStats, TodayOccurrence, TooEarlyDetail } from '../lib/types'
+
+interface AlarmInfo {
+  habitName: string
+  nowLabel: string
+  scheduledLabel: string
+  guardHours: number
+}
 import Heatmap from './Heatmap'
 import CountUp from './CountUp'
+import AlarmModal from './AlarmModal'
 
 interface Props {
   habit: Habit
@@ -18,6 +27,7 @@ export default function HabitCard({ habit, todayOccurrences, onEdit, onReactivat
   const { showToast } = useToast()
   const [stats, setStats] = useState<HabitStats | null>(null)
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
+  const [alarm, setAlarm] = useState<AlarmInfo | null>(null)
 
   const loadStats = useCallback(() => {
     if (!habit.active) return
@@ -30,6 +40,19 @@ export default function HabitCard({ habit, todayOccurrences, onEdit, onReactivat
 
   async function handlePillClick(occ: TodayOccurrence) {
     if (occ.status === 'confirmed' || pendingIds.has(occ.id)) return
+
+    // checagem local instantanea (mesma regra do backend) -- evita um
+    // round-trip só pra descobrir que vai ser bloqueado
+    if (isTooEarlyToConfirm(habit.early_confirm_guard_hours, occ.time)) {
+      setAlarm({
+        habitName: habit.name,
+        nowLabel: formatHM(new Date()),
+        scheduledLabel: occ.time,
+        guardHours: habit.early_confirm_guard_hours,
+      })
+      return
+    }
+
     setPendingIds((prev) => new Set(prev).add(occ.id))
     try {
       await api.confirmOccurrenceAdmin(occ.id)
@@ -48,6 +71,18 @@ export default function HabitCard({ habit, todayOccurrences, onEdit, onReactivat
           loadStats()
         },
       )
+    } catch (e) {
+      // rede de seguranca: backend tambem valida a trava (ex: relogio do
+      // navegador desincronizado, ou outra aba editou o hábito)
+      if (e instanceof ApiError && e.status === 425 && e.detail && typeof e.detail === 'object') {
+        const d = e.detail as TooEarlyDetail
+        setAlarm({
+          habitName: d.habit_name,
+          nowLabel: formatHM(new Date(d.now)),
+          scheduledLabel: formatHM(new Date(d.scheduled_at)),
+          guardHours: d.guard_hours,
+        })
+      }
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)
@@ -96,6 +131,7 @@ export default function HabitCard({ habit, todayOccurrences, onEdit, onReactivat
   const lastConfirmed = [...(stats?.history ?? [])].reverse().find((h) => h.confirmed_at)?.confirmed_at
 
   return (
+    <>
     <article className="panel animate-fade-up p-6">
       <span className="rivet rivet-tl" />
       <span className="rivet rivet-tr" />
@@ -202,5 +238,16 @@ export default function HabitCard({ habit, todayOccurrences, onEdit, onReactivat
         </span>
       </div>
     </article>
+
+    {alarm && (
+      <AlarmModal
+        habitName={alarm.habitName}
+        nowLabel={alarm.nowLabel}
+        scheduledLabel={alarm.scheduledLabel}
+        guardHours={alarm.guardHours}
+        onClose={() => setAlarm(null)}
+      />
+    )}
+    </>
   )
 }

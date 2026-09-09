@@ -35,6 +35,11 @@ class Habit(SQLModel, table=True):
     retry_interval_min: int = Field(default=60)
     max_retries: int = Field(default=3)
 
+    # Trava: nao deixa confirmar uma ocorrencia com mais do que essa
+    # quantidade de horas de antecedencia (ex: marcar o remedio das 20h
+    # estando ainda de manha). 0 = sem trava.
+    early_confirm_guard_hours: int = Field(default=3)
+
     active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

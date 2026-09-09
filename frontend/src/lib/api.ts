@@ -4,9 +4,13 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  /** Corpo de `detail` cru da resposta -- string na maioria dos erros, mas
+   * pode ser um objeto estruturado (ex: { error: "too_early", ... }). */
+  detail: unknown
+  constructor(status: number, message: string, detail?: unknown) {
     super(message)
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -21,14 +25,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    let detail = res.statusText
+    let detail: unknown = res.statusText
     try {
       const body = await res.json()
       detail = body.detail ?? detail
     } catch {
       // corpo nao era JSON, mantem statusText
     }
-    throw new ApiError(res.status, detail)
+    const message = typeof detail === 'string' ? detail : res.statusText
+    throw new ApiError(res.status, message, detail)
   }
 
   if (res.status === 204) return undefined as T

@@ -10,6 +10,7 @@ export interface Habit {
   days_of_week: number[] | null
   retry_interval_min: number
   max_retries: number
+  early_confirm_guard_hours: number
   active: boolean
 }
 
@@ -20,6 +21,15 @@ export interface HabitInput {
   days_of_week: number[] | null
   retry_interval_min: number
   max_retries: number
+  early_confirm_guard_hours: number
+}
+
+export interface TooEarlyDetail {
+  error: 'too_early'
+  habit_name: string
+  scheduled_at: string
+  now: string
+  guard_hours: number
 }
 
 export interface TodayOccurrence {

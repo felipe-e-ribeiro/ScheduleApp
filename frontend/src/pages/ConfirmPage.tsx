@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import * as api from '../lib/api'
+import { ApiError } from '../lib/api'
 import { useToast } from '../context/ToastContext'
-import type { ConfirmInfo } from '../lib/types'
+import { formatHM } from '../lib/format'
+import AlarmModal from '../components/AlarmModal'
+import type { ConfirmInfo, TooEarlyDetail } from '../lib/types'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
@@ -16,6 +19,7 @@ export default function ConfirmPage() {
   const [info, setInfo] = useState<ConfirmInfo | null>(null)
   const [done, setDone] = useState(false)
   const [confirmedAt, setConfirmedAt] = useState<string | null>(null)
+  const [alarm, setAlarm] = useState<TooEarlyDetail | null>(null)
   const [apiLine, setApiLine] = useState(
     `GET /api/occurrences/confirm?occurrence=${occurrence}&token=${token.slice(0, 18)}…`,
   )
@@ -57,13 +61,18 @@ export default function ConfirmPage() {
           setConfirmedAt(null)
         },
       )
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 425 && e.detail && typeof e.detail === 'object') {
+        setAlarm(e.detail as TooEarlyDetail)
+        return
+      }
       // se o token expirou entre a leitura e o clique, cai pro estado de erro
       setState('error')
     }
   }
 
   return (
+    <>
     <div className="flex min-h-[60vh] items-center justify-center pt-[6vh]">
       <div className="panel w-full max-w-[360px] p-8 pb-7 text-center">
         <span className="rivet rivet-tl" />
@@ -154,5 +163,16 @@ export default function ConfirmPage() {
         )}
       </div>
     </div>
+
+    {alarm && (
+      <AlarmModal
+        habitName={alarm.habit_name}
+        nowLabel={formatHM(new Date(alarm.now))}
+        scheduledLabel={formatHM(new Date(alarm.scheduled_at))}
+        guardHours={alarm.guard_hours}
+        onClose={() => setAlarm(null)}
+      />
+    )}
+    </>
   )
 }

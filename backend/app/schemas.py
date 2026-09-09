@@ -10,6 +10,7 @@ class HabitCreate(BaseModel):
     days_of_week: list[int] | None = None
     retry_interval_min: int = 60
     max_retries: int = 3
+    early_confirm_guard_hours: int = 3
 
 
 class HabitUpdate(BaseModel):
@@ -19,6 +20,7 @@ class HabitUpdate(BaseModel):
     days_of_week: list[int] | None = None
     retry_interval_min: int | None = None
     max_retries: int | None = None
+    early_confirm_guard_hours: int | None = None
     active: bool | None = None
 
 
@@ -30,4 +32,5 @@ class HabitRead(BaseModel):
     days_of_week: list[int] | None
     retry_interval_min: int
     max_retries: int
+    early_confirm_guard_hours: int
     active: bool

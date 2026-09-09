@@ -23,6 +23,22 @@ export function formatDateTime(iso: string): string {
   return `${day}/${month} ${hh}:${mm}`
 }
 
+export function formatHM(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** Checagem local (instantanea, sem round-trip) espelhando a trava do
+ * backend (`_ensure_not_too_early` em backend/app/routers/occurrences.py).
+ * `time` e sempre de hoje, ja que vem de GET /api/occurrences/today. */
+export function isTooEarlyToConfirm(guardHours: number, time: string): boolean {
+  if (guardHours <= 0) return false
+  const [h, m] = time.split(':').map(Number)
+  const scheduled = new Date()
+  scheduled.setHours(h, m, 0, 0)
+  const earliest = new Date(scheduled.getTime() - guardHours * 3600_000)
+  return new Date() < earliest
+}
+
 const dayAbbr = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
 
 export function daysToText(days: number[] | null): string {

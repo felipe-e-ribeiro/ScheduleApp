@@ -23,6 +23,7 @@ export default function HabitModal({ type, habit, onClose, onSaved }: Props) {
   const [days, setDays] = useState<Set<number>>(new Set(habit?.days_of_week?.length ? habit.days_of_week : ALL_DAYS))
   const [retryInterval, setRetryInterval] = useState(habit?.retry_interval_min ?? 60)
   const [maxRetries, setMaxRetries] = useState(habit?.max_retries ?? 3)
+  const [guardHours, setGuardHours] = useState(habit?.early_confirm_guard_hours ?? 3)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -70,6 +71,7 @@ export default function HabitModal({ type, habit, onClose, onSaved }: Props) {
       days_of_week: days.size === 7 ? null : Array.from(days).sort(),
       retry_interval_min: retryInterval,
       max_retries: maxRetries,
+      early_confirm_guard_hours: guardHours,
     }
     try {
       if (isEdit) {
@@ -225,6 +227,20 @@ export default function HabitModal({ type, habit, onClose, onSaved }: Props) {
             />
           </Field>
         </div>
+
+        <Field label="Trava: bloquear confirmação com mais de (h) de antecedência">
+          <input
+            type="number"
+            min={0}
+            max={23}
+            className="field-input"
+            value={guardHours}
+            onChange={(e) => setGuardHours(Number(e.target.value))}
+          />
+          <div className="mt-1.5 text-[10px]" style={{ color: 'var(--text-faint)' }}>
+            0 = sem trava. Ex: com 3h, não dá pra confirmar o de 20h antes das 17h.
+          </div>
+        </Field>
 
         <div className="mb-1.5 min-h-[14px] text-[11px]" style={{ color: 'var(--red)' }}>
           {error}

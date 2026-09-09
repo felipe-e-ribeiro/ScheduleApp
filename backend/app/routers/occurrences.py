@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +23,27 @@ def _load_occurrence_by_token(occurrence: int, token: str, session: Session) -> 
     if not occ:
         raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
     return occ
+
+
+def _ensure_not_too_early(occ: Occurrence, habit: Habit) -> None:
+    """Trava: bloqueia confirmar com mais de `early_confirm_guard_hours` de
+    antecedencia (ex: marcar o remedio das 20h ainda de manha)."""
+    if habit.early_confirm_guard_hours <= 0:
+        return
+
+    now = datetime.now(TZ).replace(tzinfo=None)
+    earliest = occ.scheduled_at - timedelta(hours=habit.early_confirm_guard_hours)
+    if now < earliest:
+        raise HTTPException(
+            status_code=425,  # Too Early (RFC 8470)
+            detail={
+                "error": "too_early",
+                "habit_name": habit.name,
+                "scheduled_at": occ.scheduled_at.isoformat(),
+                "now": now.isoformat(),
+                "guard_hours": habit.early_confirm_guard_hours,
+            },
+        )
 
 
 def _do_confirm(occ: Occurrence, session: Session) -> Occurrence:
@@ -71,6 +92,9 @@ def get_confirm_info(occurrence: int, token: str, session: Session = Depends(get
 @router.post("/confirm")
 def confirm_occurrence(occurrence: int, token: str, session: Session = Depends(get_session)):
     occ = _load_occurrence_by_token(occurrence, token, session)
+    habit = session.get(Habit, occ.habit_id)
+    if habit:
+        _ensure_not_too_early(occ, habit)
     occ = _do_confirm(occ, session)
     return {"ok": True, "confirmed_at": occ.confirmed_at}
 
@@ -117,6 +141,9 @@ def confirm_occurrence_admin(occurrence_id: int, session: Session = Depends(get_
     occ = session.get(Occurrence, occurrence_id)
     if not occ:
         raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+    habit = session.get(Habit, occ.habit_id)
+    if habit:
+        _ensure_not_too_early(occ, habit)
     occ = _do_confirm(occ, session)
     return {"ok": True, "confirmed_at": occ.confirmed_at}
 
