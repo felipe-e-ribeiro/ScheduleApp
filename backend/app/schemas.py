@@ -1,0 +1,33 @@
+from pydantic import BaseModel
+
+from app.models import HabitType
+
+
+class HabitCreate(BaseModel):
+    name: str
+    type: HabitType = HabitType.custom
+    times: list[str]
+    days_of_week: list[int] | None = None
+    retry_interval_min: int = 60
+    max_retries: int = 3
+
+
+class HabitUpdate(BaseModel):
+    name: str | None = None
+    type: HabitType | None = None
+    times: list[str] | None = None
+    days_of_week: list[int] | None = None
+    retry_interval_min: int | None = None
+    max_retries: int | None = None
+    active: bool | None = None
+
+
+class HabitRead(BaseModel):
+    id: int
+    name: str
+    type: HabitType
+    times: list[str]
+    days_of_week: list[int] | None
+    retry_interval_min: int
+    max_retries: int
+    active: bool

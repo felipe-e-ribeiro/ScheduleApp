@@ -1,0 +1,28 @@
+[project]
+name = "scheduleapp-backend"
+version = "0.1.0"
+description = "API + job de lembretes (remedio, academia, etc)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlmodel>=0.0.22",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "httpx>=0.27",
+    "itsdangerous>=2.2",
+    "pydantic-settings>=2.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
