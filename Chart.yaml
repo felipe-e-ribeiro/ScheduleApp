@@ -8,7 +8,7 @@ description: >
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/felipe/ScheduleApp
+home: https://github.com/felipe-e-ribeiro/ScheduleApp
 keywords:
   - pulso
   - habits
@@ -17,9 +17,5 @@ maintainers:
   - name: Felipe
 dependencies:
   - name: platform-chart
-    version: "0.1.0"
-    # Local enquanto o platform-chart não foi publicado no GHCR ainda (ver
-    # docs/superpowers/plans do repo personal-chard, Fase 1 passo 12). Depois
-    # de publicado, trocar por:
-    #   repository: "oci://ghcr.io/<usuario>/charts"
-    repository: "file://../platform-chart"
+    version: "0.0.1" # pinada -- caret (^0.0.x) não é confiável em versões 0.x pelo semver
+    repository: "oci://ghcr.io/felipe-e-ribeiro/charts"
