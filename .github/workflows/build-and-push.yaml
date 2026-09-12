@@ -1,0 +1,66 @@
+name: build-and-push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/build-and-push.yaml"
+
+# Evita loop: o job comita de volta no mesmo branch pra atualizar as tags de
+# imagem, então o próprio commit de bump precisa não disparar o workflow de
+# novo (mensagem com "[skip ci]" abaixo) e concurrency evita corrida caso
+# dois pushes cheguem perto.
+concurrency:
+  group: build-and-push-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: tag
+        run: echo "sha=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/pulso-api:${{ steps.tag.outputs.sha }}
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/pulso-frontend:${{ steps.tag.outputs.sha }}
+
+      - name: Bump image tags in values.yaml
+        uses: mikefarah/yq@v4
+        with:
+          cmd: |
+            yq -i '.platform-chart.api.image.tag = "${{ steps.tag.outputs.sha }}"' values.yaml
+            yq -i '.platform-chart.frontend.image.tag = "${{ steps.tag.outputs.sha }}"' values.yaml
+
+      - name: Commit new image tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add values.yaml
+          git diff --cached --quiet || git commit -m "chore: bump image tags to ${{ steps.tag.outputs.sha }} [skip ci]"
+          git push

@@ -14,7 +14,10 @@
 
 platform-chart:
   image:
-    registry: "" # ex: ghcr.io/<usuario> -- deixe vazio pra usar repository completo
+    # TODO preencher antes do primeiro deploy real: "ghcr.io/<seu-usuario-github>"
+    # (precisa bater com o owner do repo, já que o CI publica em
+    # ghcr.io/${{ github.repository_owner }}/pulso-api|pulso-frontend).
+    registry: ""
 
   api:
     enabled: true
