@@ -87,8 +87,13 @@ platform-chart:
   # apontando pra um Secret já criado fora do Helm com as mesmas chaves:
   #   SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, TELEGRAM_BOT_TOKEN,
   #   TELEGRAM_CHAT_ID
+  # Produção (via ArgoCD) usa existingSecret -- o ArgoCD só lê o que está no
+  # git, e values-secrets.yaml (com os valores reais) fica de fora de
+  # propósito. Crie o Secret manualmente uma vez (ver
+  # ../argocd-bootstrap/apps/pulso.yaml). Localmente, sobrescreva com
+  # `-f values-secrets.yaml --set platform-chart.secrets.create=true`.
   secrets:
     create: false
-    existingSecret: ""
+    existingSecret: pulso-secrets
     databaseUrlEnvName: DATABASE_URL
     data: {}
