@@ -1,0 +1,6 @@
+dependencies:
+- name: platform-chart
+  repository: file://../platform-chart
+  version: 0.1.0
+digest: sha256:c4f5c3aa6697e1cef3dff1252c5a0b9770957a5e48ab51bb8d82d03eb1d57593
+generated: "2026-09-12T17:43:12.865283-03:00"

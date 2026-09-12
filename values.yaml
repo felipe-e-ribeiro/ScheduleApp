@@ -1,0 +1,94 @@
+# Valores do pulso, consumindo o platform-chart como dependência -- toda a
+# config fica aninhada sob "platform-chart:" (é assim que o Helm repassa
+# values pra um subchart). Uso pessoal / single-tenant -- sem HPA nem
+# múltiplas réplicas em lugar nenhum daqui.
+#
+# Segredos ficam em `values-secrets.yaml` (copie de
+# `values-secrets.example.yaml`, NÃO commitar) e são passados junto:
+#
+#   helm dependency build
+#   helm upgrade --install pulso . \
+#     -f values.yaml \
+#     -f values-secrets.yaml \
+#     --set platform-chart.secrets.create=true
+
+platform-chart:
+  image:
+    registry: "" # ex: ghcr.io/<usuario> -- deixe vazio pra usar repository completo
+
+  api:
+    enabled: true
+    image:
+      repository: pulso-api
+      tag: "" # default: appVersion deste Chart.yaml
+    port: 8000
+    # Roda `alembic upgrade head` num initContainer antes do uvicorn subir --
+    # evita repetir migration em todo restart de pod.
+    migration:
+      enabled: true
+      command: ["alembic", "upgrade", "head"]
+    probes:
+      path: /api/health
+      readiness: {initialDelaySeconds: 5, periodSeconds: 10}
+      liveness: {initialDelaySeconds: 15, periodSeconds: 20}
+    # TIMEZONE: datetimes "naive local" nesse fuso, não UTC (ver CLAUDE.md).
+    extraEnv:
+      - name: TIMEZONE
+        value: "America/Sao_Paulo"
+
+  frontend:
+    enabled: true
+    image:
+      repository: pulso-frontend
+      tag: ""
+    port: 80
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    host: pulso.felipeduribeiro.com.br
+    tls:
+      enabled: true
+      secretName: pulso-tls
+    apiPath: /api
+    # Confirmação pelo Telegram usa link https://<host>/... -- o backend
+    # precisa saber sua própria URL pública pra montar esse link.
+    publicUrlEnvName: FRONTEND_BASE_URL
+
+  # Job periódico que gera ocorrências do dia, notifica (Telegram), reenvia
+  # (retry) e fecha ocorrências vencidas como "missed". Ver
+  # backend/app/jobs/tick.py.
+  cronjob:
+    enabled: true
+    schedule: "*/5 * * * *" # a cada 5 min; ajuste ao intervalo de retry desejado
+    command: ["python", "-m", "app.jobs.tick"]
+    extraEnv:
+      - name: TIMEZONE
+        value: "America/Sao_Paulo"
+
+  # Postgres self-hosted no próprio cluster (decisão registrada no
+  # CLAUDE.md: mantém a stack simples de testar local, sem driver
+  # oracledb/wallet). Se `postgres.enabled: false`, defina
+  # `secrets.databaseUrl` apontando pro banco externo.
+  postgres:
+    enabled: true
+    database: scheduleapp
+    username: app
+    urlScheme: postgresql+psycopg
+    persistence:
+      storageClassName: "oci-bv" # storageClass do OKE
+
+  # `data` e `postgresPassword` só valem com secrets.create=true (dev/teste
+  # rápido -- fica em texto puro no values-secrets.yaml/histórico do helm).
+  # Em produção prefira secrets.create=false + secrets.existingSecret
+  # apontando pra um Secret já criado fora do Helm com as mesmas chaves:
+  #   SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, TELEGRAM_BOT_TOKEN,
+  #   TELEGRAM_CHAT_ID
+  secrets:
+    create: false
+    existingSecret: ""
+    databaseUrlEnvName: DATABASE_URL
+    data: {}

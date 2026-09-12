@@ -12,9 +12,16 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
 - **Backend**: completo e testado (FastAPI + SQLModel + Alembic + Postgres).
 - **Frontend**: completo e testado (React + Vite + TS + Tailwind), rodando
   contra o backend real via Docker + navegador.
-- **Falta**: variáveis de produção do bot do Telegram, e os manifests
-  Kubernetes pro OKE (Deployment, CronJob, Service, Ingress, Secrets) —
-  é o próximo passo natural quando voltarmos.
+- **Falta**: variáveis de produção do bot do Telegram, e aplicar de fato no
+  cluster (falta ArgoCD/ingress-nginx/cert-manager bootstrapados no OKE, e
+  publicar o `platform-chart` no GHCR).
+- **Manifests Kubernetes pro OKE: feito**, via chart compartilhado
+  `platform-chart` (repo irmão, `../platform-chart`). Este repo só tem
+  `Chart.yaml` (dependência) + `values.yaml` na raiz — sem templates
+  próprios. Ver `../platform-chart/README.md` e
+  `../personal-chard/docs/superpowers/specs/2026-09-12-personal-platform-chart-design.md`
+  pro design completo. Validar local:
+  `helm dependency build && helm template pulso . -f values.yaml -f values-secrets.yaml --set platform-chart.secrets.create=true`.
 - Design visual (protótipo interativo, referência de estética/UX antes do
   React existir): https://claude.ai/code/artifact/289897bc-851b-4a7b-a62e-73077231f3c0
 
@@ -130,12 +137,12 @@ frontend/src/
 
 1. Variáveis de produção do bot do Telegram (token/chat_id já testados
    manualmente em dev).
-2. Manifests Kubernetes pro OKE: Deployment (api), CronJob (tick),
-   Deployment (frontend, ou servir estático de outro jeito), Service,
-   Ingress (rotear `/api/*` pro backend e `/` pro frontend, mesmo domínio
-   pra evitar CORS), Secrets (telegram token, secret key, admin
-   password, database url).
-3. Considerar Postgres gerenciado vs self-hosted no cluster pra produção
+2. Publicar o `platform-chart` no GHCR (hoje a dependência do `Chart.yaml`
+   é local, `file://../platform-chart`) e trocar a `repository:` pra
+   `oci://ghcr.io/<usuario>/charts`.
+3. Bootstrap "dia 0" do cluster (ArgoCD, ingress-nginx, cert-manager) e
+   registrar o pulso em `../argocd-bootstrap/apps/pulso.yaml`.
+4. Considerar Postgres gerenciado vs self-hosted no cluster pra produção
    (self-hosted foi a escolha de dev; validar se still faz sentido em
    produção ou se vale usar o Autonomous DB free tier da Oracle nesse
    ponto).

@@ -9,3 +9,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Helm: dependência buildada localmente (file://../platform-chart) e
+# segredos reais -- nunca commitar.
+charts/*.tgz
+values-secrets.yaml
