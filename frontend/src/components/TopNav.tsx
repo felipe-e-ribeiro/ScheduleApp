@@ -17,12 +17,13 @@ export default function TopNav() {
       style={{ borderColor: 'var(--border)' }}
     >
       <div className="flex items-baseline gap-2.5">
-        <div
-          className="font-display text-[30px] font-extrabold"
+        <Link
+          to="/"
+          className="font-display text-[30px] font-extrabold transition-opacity hover:opacity-80"
           style={{ textShadow: '0 0 24px var(--amber-glow)' }}
         >
           PUL<span style={{ color: 'var(--amber)' }}>·</span>SO
-        </div>
+        </Link>
         <div className="text-[10px] uppercase tracking-[.18em]" style={{ color: 'var(--text-faint)' }}>
           painel de aderência
         </div>
