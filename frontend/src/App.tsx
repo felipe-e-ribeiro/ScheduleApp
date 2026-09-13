@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import UsersPage from './pages/UsersPage'
+import ProfilePage from './pages/ProfilePage'
 import ConfirmPage from './pages/ConfirmPage'
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route path="/:category" element={<DashboardPage />} />
+              <Route path="/perfil" element={<ProfilePage />} />
             </Route>
 
             <Route element={<ProtectedRoute adminOnly />}>

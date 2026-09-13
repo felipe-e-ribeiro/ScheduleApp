@@ -9,6 +9,7 @@ interface AuthContextValue {
   username: string | null
   role: UserRole | null
   isAdmin: boolean
+  telegramLinked: boolean
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<void>
@@ -20,16 +21,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [username, setUsername] = useState<string | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
+  const [telegramLinked, setTelegramLinked] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
       const res = await api.me()
       setUsername(res.username)
       setRole(res.role)
+      setTelegramLinked(res.telegram_linked)
       setStatus('authenticated')
     } catch {
       setUsername(null)
       setRole(null)
+      setTelegramLinked(false)
       setStatus('anonymous')
     }
   }, [])
@@ -47,11 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.logout().catch(() => {})
     setUsername(null)
     setRole(null)
+    setTelegramLinked(false)
     setStatus('anonymous')
   }, [])
 
   return (
-    <AuthContext.Provider value={{ status, username, role, isAdmin: role === 'admin', login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ status, username, role, isAdmin: role === 'admin', telegramLinked, login, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   )

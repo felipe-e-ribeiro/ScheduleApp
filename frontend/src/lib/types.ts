@@ -76,3 +76,9 @@ export interface Invite {
   used_at: string | null
   revoked_at: string | null
 }
+
+export interface TelegramLinkCode {
+  code: string
+  deep_link: string
+  expires_at: string
+}

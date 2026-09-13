@@ -36,13 +36,20 @@ export default function TopNav() {
         <span className="tabular-nums" style={{ color: 'var(--text)' }}>
           {now.toLocaleTimeString('pt-BR', { hour12: false })}
         </span>
+        <Link
+          to="/perfil"
+          className="rounded-full border px-2.5 py-1.5 text-[10px] uppercase tracking-wider transition-colors hover:text-[var(--amber)]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-faint)' }}
+        >
+          👤 Perfil
+        </Link>
         {isAdmin && (
           <Link
             to="/usuarios"
             className="rounded-full border px-2.5 py-1.5 text-[10px] uppercase tracking-wider transition-colors hover:text-[var(--amber)]"
             style={{ borderColor: 'var(--border)', color: 'var(--text-faint)' }}
           >
-            👤 Usuários
+            🛠 Usuários
           </Link>
         )}
         <button

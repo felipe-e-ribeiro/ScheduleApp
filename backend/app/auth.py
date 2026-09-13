@@ -96,3 +96,17 @@ def hash_invite_token(token: str) -> str:
     import hashlib
 
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Codigo de vinculo do Telegram -- curto de proposito (usuario as vezes
+# digita a mao no chat, nao so' abre o deep link). Guardado em claro no
+# proprio User (nao e' credencial de acesso, so' identifica pra quem
+# associar o /start que chegar no webhook -- e expira em poucos minutos).
+# ---------------------------------------------------------------------------
+
+_TELEGRAM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O/1/I -- evita confusao ao digitar
+
+
+def generate_telegram_link_code() -> str:
+    return "".join(secrets.choice(_TELEGRAM_CODE_ALPHABET) for _ in range(6))

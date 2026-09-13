@@ -33,6 +33,16 @@ class User(SQLModel, table=True):
     active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    # Vinculo com o Telegram (DM, chat privado -- nunca grupo). Unico:
+    # um chat do Telegram so' pode estar vinculado a UMA conta do pulse.
+    telegram_chat_id: str | None = Field(default=None, unique=True, index=True)
+
+    # Codigo de vinculo pendente (fluxo /start <codigo> no bot) -- so'
+    # existe UM por vez, gerar de novo sobrescreve o anterior. Sem tabela
+    # separada, e' estado transiente de um unico usuario.
+    pending_telegram_code: str | None = Field(default=None)
+    pending_telegram_code_expires_at: datetime | None = Field(default=None)
+
 
 class Invite(SQLModel, table=True):
     __tablename__ = "invites"

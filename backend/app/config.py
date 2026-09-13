@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     timezone: str = "America/Sao_Paulo"
 
     telegram_bot_token: str = ""
-    telegram_chat_id: str = ""
+
+    # Compartilhado com quem chama o webhook do Telegram (setWebhook usa o
+    # mesmo valor como secret_token) -- garante que so' o Telegram consegue
+    # chamar POST /api/telegram/webhook.
+    telegram_webhook_secret: str = "change-me"
 
     secret_key: str = "change-me"
 
@@ -23,6 +27,7 @@ class Settings(BaseSettings):
     confirm_token_max_age_seconds: int = 60 * 60 * 24 * 3  # 3 dias
     session_max_age_seconds: int = 60 * 60 * 24 * 30  # 30 dias
     invite_max_age_seconds: int = 60 * 60  # 1 hora
+    telegram_link_code_max_age_seconds: int = 60 * 10  # 10 minutos
 
 
 settings = Settings()

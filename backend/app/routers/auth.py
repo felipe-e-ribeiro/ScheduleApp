@@ -89,4 +89,9 @@ def logout(response: Response):
 @router.get("/me")
 def me(user: User = Depends(get_current_user)):
     """Usado pelo frontend pra saber, ao carregar a pagina, se a sessao ainda e valida."""
-    return {"ok": True, "username": user.username, "role": user.role}
+    return {
+        "ok": True,
+        "username": user.username,
+        "role": user.role,
+        "telegram_linked": user.telegram_chat_id is not None,
+    }

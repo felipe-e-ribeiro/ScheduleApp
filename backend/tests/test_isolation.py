@@ -9,7 +9,15 @@ from app.models import User, UserRole
 
 def _make_logged_in_client(engine, username: str) -> TestClient:
     with Session(engine) as session:
-        user = User(username=username, password_hash=hash_password("senha-forte"), role=UserRole.user)
+        # telegram_chat_id preenchido -- cadastro de habito exige vinculo
+        # (ver tests/test_telegram_link.py), irrelevante pro que este teste
+        # verifica (isolamento entre usuarios).
+        user = User(
+            username=username,
+            password_hash=hash_password("senha-forte"),
+            role=UserRole.user,
+            telegram_chat_id=f"chat-{username}",
+        )
         session.add(user)
         session.commit()
 

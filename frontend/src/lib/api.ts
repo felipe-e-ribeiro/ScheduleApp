@@ -1,4 +1,15 @@
-import type { ConfirmInfo, Habit, HabitInput, HabitStats, HabitType, Invite, TodayOccurrence, User, UserRole } from './types'
+import type {
+  ConfirmInfo,
+  Habit,
+  HabitInput,
+  HabitStats,
+  HabitType,
+  Invite,
+  TelegramLinkCode,
+  TodayOccurrence,
+  User,
+  UserRole,
+} from './types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
@@ -56,7 +67,7 @@ export function logout() {
 }
 
 export function me() {
-  return request<{ ok: true; username: string; role: UserRole }>('/api/auth/me')
+  return request<{ ok: true; username: string; role: UserRole; telegram_linked: boolean }>('/api/auth/me')
 }
 
 export function register(token: string, username: string, password: string) {
@@ -88,6 +99,14 @@ export function createInvite() {
 
 export function revokeInvite(id: number) {
   return request<{ ok: true }>(`/api/admin/invites/${id}`, { method: 'DELETE' })
+}
+
+// ---------------------------------------------------------------------------
+// perfil -- vinculo do telegram
+// ---------------------------------------------------------------------------
+
+export function createTelegramLinkCode() {
+  return request<TelegramLinkCode>('/api/profile/telegram/link-code', { method: 'POST' })
 }
 
 // ---------------------------------------------------------------------------

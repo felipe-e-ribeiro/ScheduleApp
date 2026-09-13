@@ -30,6 +30,12 @@ def list_habits(
 
 @router.post("", response_model=HabitRead)
 def create_habit(payload: HabitCreate, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    if not user.telegram_chat_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Vincule seu Telegram na página de Perfil antes de cadastrar um hábito.",
+        )
+
     habit = Habit(**payload.model_dump(), user_id=user.id)
     session.add(habit)
     session.commit()

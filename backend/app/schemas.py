@@ -67,3 +67,14 @@ class InviteRead(BaseModel):
     expires_at: datetime
     used_at: datetime | None
     revoked_at: datetime | None
+
+
+# ---------------------------------------------------------------------------
+# telegram (vinculo por usuario)
+# ---------------------------------------------------------------------------
+
+
+class TelegramLinkCodeRead(BaseModel):
+    code: str
+    deep_link: str
+    expires_at: datetime

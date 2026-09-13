@@ -10,12 +10,13 @@ nem reenviar notificacao fora do intervalo de retry configurado.
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+import httpx
 from sqlmodel import Session, select
 
 from app.auth import make_confirm_token
 from app.config import settings
 from app.db import engine
-from app.models import Habit, Occurrence, OccurrenceStatus
+from app.models import Habit, Occurrence, OccurrenceStatus, User
 from app.telegram import send_message
 
 TZ = ZoneInfo(settings.timezone)
@@ -66,7 +67,20 @@ def _notify(session: Session, habit: Habit, occ: Occurrence) -> None:
     verb = "Hora de" if occ.notify_count == 0 else "Ainda pendente:"
     text = f"{verb} <b>{habit.name}</b> ({occ.scheduled_at.strftime('%d/%m %H:%M')})\n{link}"
 
-    send_message(text)
+    # DM do dono do habito -- nunca um chat global. Sem chat_id vinculado
+    # (nao deveria acontecer, cadastro de habito exige vinculo, mas o
+    # usuario pode ter desvinculado depois) ou bot bloqueado (403): loga e
+    # segue, nao derruba o job. Ainda assim marca como "tentado" (mesma
+    # contagem/pacing de retry de um envio normal) -- senao um usuario que
+    # bloqueou o bot faria o job tentar de novo a cada tick, pra sempre.
+    user = session.get(User, habit.user_id)
+    if user and user.telegram_chat_id:
+        try:
+            send_message(user.telegram_chat_id, text)
+        except httpx.HTTPStatusError as exc:
+            print(f"[tick] falha ao notificar user_id={habit.user_id} habit_id={habit.id}: {exc}")
+    else:
+        print(f"[tick] habit_id={habit.id} (user_id={habit.user_id}) sem Telegram vinculado, pulando notificacao")
 
     occ.notify_count += 1
     occ.last_notified_at = _now_naive()
