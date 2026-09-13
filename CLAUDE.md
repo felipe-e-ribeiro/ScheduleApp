@@ -12,16 +12,32 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
 - **Backend**: completo e testado (FastAPI + SQLModel + Alembic + Postgres).
 - **Frontend**: completo e testado (React + Vite + TS + Tailwind), rodando
   contra o backend real via Docker + navegador.
-- **Falta**: variáveis de produção do bot do Telegram, e aplicar de fato no
-  cluster (falta ArgoCD/ingress-nginx/cert-manager bootstrapados no OKE, e
-  publicar o `platform-chart` no GHCR).
-- **Manifests Kubernetes pro OKE: feito**, via chart compartilhado
-  `platform-chart` (repo irmão, `../platform-chart`). Este repo só tem
-  `Chart.yaml` (dependência) + `values.yaml` na raiz — sem templates
-  próprios. Ver `../platform-chart/README.md` e
-  `../personal-chard/docs/superpowers/specs/2026-09-12-personal-platform-chart-design.md`
-  pro design completo. Validar local:
-  `helm dependency build && helm template pulso . -f values.yaml -f values-secrets.yaml --set platform-chart.secrets.create=true`.
+- **Falta**: variáveis de produção do bot do Telegram; cadastrar os
+  secrets pendentes (`PULSE_INFRA_PAT` aqui, `HUB_DISPATCH_TOKEN` e
+  `SECRET_CONTENT_PULSE` no `pulse-infra`/`oks-personal-infra`); resolver
+  a `NetworkPolicy isolate-postgresql` que hoje bloqueia o pulse (ver
+  `pulse-infra/README.md`).
+- **Este repo não tem mais `Chart.yaml`/`values.yaml`** (removidos) —
+  fica só código + `Dockerfile`s + CI de imagem
+  (`.github/workflows/build-and-push.yaml`, builda `pulse-api`/
+  `pulse-frontend` e comita a tag no repo `pulse-infra`, que precisou de
+  um PAT próprio: secret `PULSE_INFRA_PAT` aqui).
+- **Manifests Kubernetes**: vivem em
+  [`pulse-infra`](https://github.com/felipe-e-ribeiro/pulse-infra)
+  (gerado a partir do
+  [`app-infra-template`](https://github.com/felipe-e-ribeiro/app-infra-template)),
+  consumindo o chart compartilhado
+  [`platform-chart`](https://github.com/felipe-e-ribeiro/personal-charts)
+  (já publicado no GHCR, `oci://ghcr.io/felipe-e-ribeiro/charts`).
+  ArgoCD/ingress-nginx/cert-manager **já estavam instalados** no
+  `oks-personal` (descoberto durante a implementação, não precisou
+  bootstrapar). Descoberta automática via `ApplicationSet` — sem
+  `Application` escrita à mão. Design completo:
+  `../personal-chard/docs/superpowers/specs/2026-09-12-vault-eso-applicationset-design.md`.
+- **Postgres: não é mais self-hosted** (decisão revertida — ver abaixo).
+  Usa a instância já existente do `comprasweb-prod`, banco `pulse`
+  dedicado, criado sozinho pelo backend no startup
+  (`backend/app/db_bootstrap.py`) — ver `pulse-infra/resources.yaml`.
 - Design visual (protótipo interativo, referência de estética/UX antes do
   React existir): https://claude.ai/code/artifact/289897bc-851b-4a7b-a62e-73077231f3c0
 
@@ -34,9 +50,13 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
   um stack Lambda/DynamoDB/EventBridge. Ver histórico de conversa pra o
   raciocínio completo de custo/operação (praticamente free tier dos dois
   lados; o que decidiu foi esforço operacional marginal).
-- **Postgres self-hosted no cluster**, não Oracle Autonomous DB — mantém a
-  stack simples de testar local (o Autonomous DB exigiria driver
-  `oracledb` + wallet/mTLS em vez de um Postgres comum).
+- **Postgres self-hosted, mas compartilhado com outro app** (revisão da
+  decisão original de "self-hosted próprio" — nem isso, nem Oracle
+  Autonomous DB): reaproveita a instância Postgres que já roda pro
+  `comprasweb-prod`, banco `pulse` dedicado dentro dela. Evita subir mais
+  um Postgres no cluster pessoal só pra esse app. Trade-off aceito:
+  acopla o pulse ao ciclo de vida/credenciais daquele Postgres (ver
+  `pulse-infra/README.md` pra pendência de rede ainda em aberto).
 - **Confirmação tem dois caminhos** (mesma ação, credenciais diferentes):
   - Telegram → link com token HMAC assinado (`itsdangerous`), sem login.
   - Painel → sessão de admin (cookie), sem token — pra quando você já
@@ -137,12 +157,14 @@ frontend/src/
 
 1. Variáveis de produção do bot do Telegram (token/chat_id já testados
    manualmente em dev).
-2. Publicar o `platform-chart` no GHCR (hoje a dependência do `Chart.yaml`
-   é local, `file://../platform-chart`) e trocar a `repository:` pra
-   `oci://ghcr.io/<usuario>/charts`.
-3. Bootstrap "dia 0" do cluster (ArgoCD, ingress-nginx, cert-manager) e
-   registrar o pulso em `../argocd-bootstrap/apps/pulso.yaml`.
-4. Considerar Postgres gerenciado vs self-hosted no cluster pra produção
-   (self-hosted foi a escolha de dev; validar se still faz sentido em
-   produção ou se vale usar o Autonomous DB free tier da Oracle nesse
-   ponto).
+2. Cadastrar os secrets pendentes: `PULSE_INFRA_PAT` aqui (PAT
+   fine-grained, escrita só no `pulse-infra`); `HUB_DISPATCH_TOKEN` no
+   `pulse-infra` (escrita/leitura de Actions só no `oks-personal-infra`);
+   `SECRET_CONTENT_PULSE` no `oks-personal-infra` (JSON dos segredos reais
+   — inclui a `DATABASE_URL` do Postgres compartilhado).
+3. Resolver a `NetworkPolicy isolate-postgresql` (gerida pelo
+   `checklist-compras-infra`) — hoje bloqueia o pulse por padrão, ajuste
+   adiado por decisão explícita (ver `pulse-infra/README.md`).
+4. Testar `backend/app/db_bootstrap.py` (criação automática do banco
+   `pulse`) contra um Postgres real antes do primeiro deploy — só validado
+   por leitura de código nesta sessão (Docker indisponível no ambiente).

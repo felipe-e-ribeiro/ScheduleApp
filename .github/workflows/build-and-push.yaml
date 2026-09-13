@@ -8,20 +8,15 @@ on:
       - "frontend/**"
       - ".github/workflows/build-and-push.yaml"
 
-# Evita loop: o job comita de volta no mesmo branch pra atualizar as tags de
-# imagem, então o próprio commit de bump precisa não disparar o workflow de
-# novo (mensagem com "[skip ci]" abaixo) e concurrency evita corrida caso
-# dois pushes cheguem perto.
 concurrency:
   group: build-and-push-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build-and-push:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -41,26 +36,37 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/pulso-api:${{ steps.tag.outputs.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/pulse-api:${{ steps.tag.outputs.sha }}
 
       - name: Build and push frontend
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/pulso-frontend:${{ steps.tag.outputs.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/pulse-frontend:${{ steps.tag.outputs.sha }}
 
-      - name: Bump image tags in values.yaml
+      # values.yaml não mora mais neste repo -- vive em pulse-infra.
+      # Precisa de um PAT com escrita SÓ nesse repo (fine-grained), guardado
+      # aqui como PULSE_INFRA_PAT -- ver README.
+      - name: Checkout pulse-infra
+        uses: actions/checkout@v4
+        with:
+          repository: felipe-e-ribeiro/pulse-infra
+          token: ${{ secrets.PULSE_INFRA_PAT }}
+          path: pulse-infra
+
+      - name: Bump image tags no pulse-infra
         uses: mikefarah/yq@v4
         with:
           cmd: |
-            yq -i '.platform-chart.api.image.tag = "${{ steps.tag.outputs.sha }}"' values.yaml
-            yq -i '.platform-chart.frontend.image.tag = "${{ steps.tag.outputs.sha }}"' values.yaml
+            yq -i '.platform-chart.api.image.tag = "${{ steps.tag.outputs.sha }}"' pulse-infra/values.yaml
+            yq -i '.platform-chart.frontend.image.tag = "${{ steps.tag.outputs.sha }}"' pulse-infra/values.yaml
 
-      - name: Commit new image tags
+      - name: Commit e push no pulse-infra
+        working-directory: pulse-infra
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add values.yaml
-          git diff --cached --quiet || git commit -m "chore: bump image tags to ${{ steps.tag.outputs.sha }} [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: bump image tags to ${{ steps.tag.outputs.sha }}"
           git push
