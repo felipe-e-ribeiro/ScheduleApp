@@ -6,10 +6,16 @@ from sqlmodel import SQLModel
 
 # Garante que os models sejam importados e registrados no metadata antes do autogenerate.
 from app.config import settings
+from app.db_bootstrap import ensure_database_exists
 from app.models import Habit, Occurrence  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# Cria o banco alvo se ainda não existir -- necessário quando o Postgres é
+# compartilhado com outro app (ver app/db_bootstrap.py). Idempotente: não
+# faz nada se o banco já existe.
+ensure_database_exists(settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
