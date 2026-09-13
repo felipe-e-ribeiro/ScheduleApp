@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from app.auth import generate_invite_token, hash_invite_token, require_admin
 from app.config import settings
 from app.db import get_session
-from app.models import Invite, User
+from app.models import Invite, User, UserRole
 from app.schemas import InviteRead, UserRead, UserUpdate
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
@@ -23,7 +23,9 @@ def _invite_url(token: str) -> str:
 
 @router.get("/users", response_model=list[UserRead])
 def list_users(session: Session = Depends(get_session)):
-    return session.exec(select(User).order_by(User.id)).all()
+    # So' contas "user" -- o admin nao aparece na propria tela de gestao
+    # (nao faz sentido ativar/desativar a si mesmo, e so' existe 1 admin).
+    return session.exec(select(User).where(User.role == UserRole.user).order_by(User.id)).all()
 
 
 @router.patch("/users/{user_id}", response_model=UserRead)
