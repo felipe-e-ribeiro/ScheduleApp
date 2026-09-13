@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 # Garante que os models sejam importados e registrados no metadata antes do autogenerate.
 from app.config import settings
 from app.db_bootstrap import ensure_database_exists
-from app.models import Habit, Occurrence  # noqa: F401
+from app.models import Habit, Invite, Occurrence, User  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

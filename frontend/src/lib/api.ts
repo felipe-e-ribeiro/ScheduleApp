@@ -1,4 +1,4 @@
-import type { ConfirmInfo, Habit, HabitInput, HabitStats, HabitType, TodayOccurrence } from './types'
+import type { ConfirmInfo, Habit, HabitInput, HabitStats, HabitType, Invite, TodayOccurrence, User, UserRole } from './types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
 
@@ -56,7 +56,38 @@ export function logout() {
 }
 
 export function me() {
-  return request<{ ok: true; username: string }>('/api/auth/me')
+  return request<{ ok: true; username: string; role: UserRole }>('/api/auth/me')
+}
+
+export function register(token: string, username: string, password: string) {
+  return request<{ ok: true }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ token, username, password }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// admin -- usuarios e convites
+// ---------------------------------------------------------------------------
+
+export function listUsers() {
+  return request<User[]>('/api/admin/users')
+}
+
+export function setUserActive(id: number, active: boolean) {
+  return request<User>(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify({ active }) })
+}
+
+export function listInvites() {
+  return request<Invite[]>('/api/admin/invites')
+}
+
+export function createInvite() {
+  return request<Invite>('/api/admin/invites', { method: 'POST' })
+}
+
+export function revokeInvite(id: number) {
+  return request<{ ok: true }>(`/api/admin/invites/${id}`, { method: 'DELETE' })
 }
 
 // ---------------------------------------------------------------------------

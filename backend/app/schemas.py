@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
-from app.models import HabitType
+from app.models import HabitType, UserRole
 
 
 class HabitCreate(BaseModel):
@@ -34,3 +36,34 @@ class HabitRead(BaseModel):
     max_retries: int
     early_confirm_guard_hours: int
     active: bool
+
+
+# ---------------------------------------------------------------------------
+# usuarios / convites
+# ---------------------------------------------------------------------------
+
+
+class RegisterRequest(BaseModel):
+    token: str
+    username: str
+    password: str
+
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    role: UserRole
+    active: bool
+    created_at: datetime
+
+
+class UserUpdate(BaseModel):
+    active: bool
+
+
+class InviteRead(BaseModel):
+    id: int
+    invite_url: str
+    expires_at: datetime
+    used_at: datetime | None
+    revoked_at: datetime | None

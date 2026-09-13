@@ -58,3 +58,21 @@ export interface ConfirmInfo {
   status: OccurrenceStatus
   already_confirmed: boolean
 }
+
+export type UserRole = 'admin' | 'user'
+
+export interface User {
+  id: number
+  username: string
+  role: UserRole
+  active: boolean
+  created_at: string
+}
+
+export interface Invite {
+  id: number
+  invite_url: string
+  expires_at: string
+  used_at: string | null
+  revoked_at: string | null
+}

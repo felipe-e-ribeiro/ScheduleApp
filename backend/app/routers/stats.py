@@ -1,21 +1,30 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from app.auth import require_admin
+from app.auth import get_current_user
 from app.config import settings
 from app.db import get_session
-from app.models import Occurrence, OccurrenceStatus
+from app.models import Habit, Occurrence, OccurrenceStatus, User
 
-router = APIRouter(prefix="/api/stats", tags=["stats"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 TZ = ZoneInfo(settings.timezone)
 
 
 @router.get("/habits/{habit_id}")
-def habit_stats(habit_id: int, days: int = Query(default=30, le=365), session: Session = Depends(get_session)):
+def habit_stats(
+    habit_id: int,
+    days: int = Query(default=30, le=365),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    habit = session.get(Habit, habit_id)
+    if not habit or habit.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Habit nao encontrado")
+
     # naive, hora local -- mesma convencao de Occurrence.scheduled_at (ver tick.py)
     since = datetime.now(TZ).replace(tzinfo=None) - timedelta(days=days)
     occurrences = session.exec(

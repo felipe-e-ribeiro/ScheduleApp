@@ -1,8 +1,15 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-export default function ProtectedRoute() {
-  const { status } = useAuth()
+interface Props {
+  /** Exige role="admin" alem de estar autenticado -- usuario comum e mandado
+   * de volta pro dashboard (a protecao de verdade e' o 403 do backend, isso
+   * aqui e' so' pra nao nem mostrar a tela). */
+  adminOnly?: boolean
+}
+
+export default function ProtectedRoute({ adminOnly = false }: Props) {
+  const { status, isAdmin } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -18,6 +25,10 @@ export default function ProtectedRoute() {
 
   if (status === 'anonymous') {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/medicacao" replace />
   }
 
   return <Outlet />

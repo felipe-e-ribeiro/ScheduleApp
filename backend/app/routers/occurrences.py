@@ -4,10 +4,10 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
-from app.auth import read_confirm_token, require_admin
+from app.auth import get_current_user, read_confirm_token
 from app.config import settings
 from app.db import get_session
-from app.models import Habit, Occurrence, OccurrenceStatus
+from app.models import Habit, Occurrence, OccurrenceStatus, User
 
 router = APIRouter(prefix="/api/occurrences", tags=["occurrences"])
 
@@ -107,21 +107,38 @@ def unconfirm_occurrence(occurrence: int, token: str, session: Session = Depends
 
 
 # ---------------------------------------------------------------------------
-# Fluxo autenticado pelo painel (sessao de admin, sem token) -- pro caso de ja
-# ter tomado o remedio/ido treinar sem esperar o Telegram avisar, e pra
-# desfazer um clique sem querer.
+# Fluxo autenticado pelo painel (sessao de usuario, sem token) -- pro caso de
+# ja ter tomado o remedio/ido treinar sem esperar o Telegram avisar, e pra
+# desfazer um clique sem querer. Escopado ao dono do habit -- ver
+# `_get_own_occurrence`.
 # ---------------------------------------------------------------------------
 
 
-@router.get("/today", dependencies=[Depends(require_admin)])
-def list_today(session: Session = Depends(get_session)):
+def _get_own_occurrence(occurrence_id: int, user: User, session: Session) -> Occurrence:
+    """Carrega a ocorrencia so' se o habit dela pertencer ao usuario logado."""
+    occ = session.get(Occurrence, occurrence_id)
+    if not occ:
+        raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+    habit = session.get(Habit, occ.habit_id)
+    if not habit or habit.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+    return occ
+
+
+@router.get("/today")
+def list_today(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     today = datetime.now(TZ).date()
     start = datetime(today.year, today.month, today.day)
     end = datetime(today.year, today.month, today.day, 23, 59, 59)
 
     occurrences = session.exec(
         select(Occurrence)
-        .where(Occurrence.scheduled_at >= start, Occurrence.scheduled_at <= end)
+        .join(Habit, Habit.id == Occurrence.habit_id)
+        .where(
+            Habit.user_id == user.id,
+            Occurrence.scheduled_at >= start,
+            Occurrence.scheduled_at <= end,
+        )
         .order_by(Occurrence.scheduled_at)
     ).all()
 
@@ -136,11 +153,11 @@ def list_today(session: Session = Depends(get_session)):
     ]
 
 
-@router.post("/{occurrence_id}/confirm", dependencies=[Depends(require_admin)])
-def confirm_occurrence_admin(occurrence_id: int, session: Session = Depends(get_session)):
-    occ = session.get(Occurrence, occurrence_id)
-    if not occ:
-        raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+@router.post("/{occurrence_id}/confirm")
+def confirm_own_occurrence(
+    occurrence_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)
+):
+    occ = _get_own_occurrence(occurrence_id, user, session)
     habit = session.get(Habit, occ.habit_id)
     if habit:
         _ensure_not_too_early(occ, habit)
@@ -148,10 +165,10 @@ def confirm_occurrence_admin(occurrence_id: int, session: Session = Depends(get_
     return {"ok": True, "confirmed_at": occ.confirmed_at}
 
 
-@router.post("/{occurrence_id}/unconfirm", dependencies=[Depends(require_admin)])
-def unconfirm_occurrence_admin(occurrence_id: int, session: Session = Depends(get_session)):
-    occ = session.get(Occurrence, occurrence_id)
-    if not occ:
-        raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+@router.post("/{occurrence_id}/unconfirm")
+def unconfirm_own_occurrence(
+    occurrence_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)
+):
+    occ = _get_own_occurrence(occurrence_id, user, session)
     occ = _do_unconfirm(occ, session)
     return {"ok": True, "status": occ.status}

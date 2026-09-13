@@ -18,10 +18,46 @@ class OccurrenceStatus(str, enum.Enum):
     missed = "missed"
 
 
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    user = "user"
+
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+
+    id: int | None = Field(default=None, primary_key=True)
+    username: str = Field(unique=True, index=True)
+    password_hash: str
+    role: UserRole = Field(default=UserRole.user)
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Invite(SQLModel, table=True):
+    __tablename__ = "invites"
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    # Guarda so' o hash do token que vai na URL -- e' uma credencial (quem
+    # tiver o link cria uma conta), mesma logica de nunca guardar senha em
+    # texto puro.
+    token_hash: str = Field(unique=True, index=True)
+
+    created_by_id: int = Field(foreign_key="users.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+
+    used_at: datetime | None = Field(default=None)
+    used_by_id: int | None = Field(default=None, foreign_key="users.id")
+    revoked_at: datetime | None = Field(default=None)
+
+
 class Habit(SQLModel, table=True):
     __tablename__ = "habits"
 
     id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
     name: str
     type: HabitType = Field(default=HabitType.custom)
 
