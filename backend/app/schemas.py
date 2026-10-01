@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from app.models import HabitType, UserRole
 
@@ -43,10 +43,30 @@ class HabitRead(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+USERNAME_MIN_LENGTH = 3
+PASSWORD_MIN_LENGTH = 8
+
+
 class RegisterRequest(BaseModel):
     token: str
     username: str
-    password: str
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH)
+
+    @field_validator("username")
+    @classmethod
+    def _username_valid(cls, v: str) -> str:
+        # strip antes de medir -- "   " ou " ab " nao podem virar conta
+        v = v.strip()
+        if len(v) < USERNAME_MIN_LENGTH:
+            raise ValueError(f"Usuário precisa ter pelo menos {USERNAME_MIN_LENGTH} caracteres")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _password_has_letters_and_digits(cls, v: str) -> str:
+        if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
+            raise ValueError("Senha precisa ter letras e números")
+        return v
 
 
 class UserRead(BaseModel):

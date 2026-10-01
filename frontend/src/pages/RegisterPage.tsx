@@ -4,6 +4,24 @@ import { useAuth } from '../context/AuthContext'
 import { ApiError } from '../lib/api'
 import * as api from '../lib/api'
 
+const USERNAME_MIN_LENGTH = 3
+const PASSWORD_MIN_LENGTH = 8
+
+// Mesmas regras do backend (RegisterRequest) -- aqui so' pra dar o erro
+// antes de gastar o request; quem garante de verdade e' a API.
+function validate(username: string, password: string): string | null {
+  if (username.trim().length < USERNAME_MIN_LENGTH) {
+    return `Usuário precisa ter pelo menos ${USERNAME_MIN_LENGTH} caracteres.`
+  }
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return `Senha precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`
+  }
+  if (!/\p{L}/u.test(password) || !/\d/.test(password)) {
+    return 'Senha precisa ter letras e números.'
+  }
+  return null
+}
+
 export default function RegisterPage() {
   const { status, refresh } = useAuth()
   const navigate = useNavigate()
@@ -23,10 +41,15 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    const invalid = validate(username, password)
+    if (invalid) {
+      setError(invalid)
+      return
+    }
     setError('')
     setSubmitting(true)
     try {
-      await api.register(token, username, password)
+      await api.register(token, username.trim(), password)
       await refresh()
       setDone(true)
       setTimeout(() => navigate('/medicacao', { replace: true }), 350)
@@ -76,6 +99,8 @@ export default function RegisterPage() {
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
+              required
+              minLength={USERNAME_MIN_LENGTH}
             />
           </div>
           <div className="mb-4">
@@ -89,6 +114,8 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
+                required
+                minLength={PASSWORD_MIN_LENGTH}
                 placeholder="••••••••"
               />
               <button
@@ -101,6 +128,10 @@ export default function RegisterPage() {
                 {showPassword ? '🙈' : '👁'}
               </button>
             </div>
+          </div>
+
+          <div className="mb-2 text-[10px]" style={{ color: 'var(--text-faint)' }}>
+            Mínimo de {PASSWORD_MIN_LENGTH} caracteres, com letras e números.
           </div>
 
           <div className="mb-3 min-h-[14px] text-[11px]" style={{ color: 'var(--red)' }}>

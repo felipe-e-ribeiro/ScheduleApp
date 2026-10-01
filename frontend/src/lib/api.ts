@@ -25,6 +25,14 @@ export class ApiError extends Error {
   }
 }
 
+/** 422 do FastAPI vem como lista de erros do pydantic -- usa a msg do
+ * primeiro (sem o prefixo "Value error, " dos validators customizados). */
+function validationMessage(detail: unknown): string | undefined {
+  if (!Array.isArray(detail) || detail.length === 0) return undefined
+  const msg = (detail[0] as { msg?: unknown })?.msg
+  return typeof msg === 'string' ? msg.replace(/^Value error, /, '') : undefined
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
@@ -43,7 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // corpo nao era JSON, mantem statusText
     }
-    const message = typeof detail === 'string' ? detail : res.statusText
+    const message = typeof detail === 'string' ? detail : (validationMessage(detail) ?? res.statusText)
     throw new ApiError(res.status, message, detail)
   }
 
