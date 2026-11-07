@@ -56,28 +56,34 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/pulse-frontend:${{ steps.tag.outputs.sha }}
 
-      # values.yaml não mora mais neste repo -- vive em pulse-infra.
-      # Precisa de um PAT com escrita SÓ nesse repo (fine-grained), guardado
-      # aqui como PULSE_INFRA_PAT -- ver README.
-      - name: Checkout pulse-infra
+      # Os manifests do pulse vivem no monorepo tools-infra (tools/pulse).
+      # Secret TOOLS_INFRA_TOKEN: PAT fine-grained com escrita SÓ no
+      # tools-infra (o mesmo nos repos de código de todos os apps).
+      - name: Checkout tools-infra
         uses: actions/checkout@v4
         with:
-          repository: felipe-e-ribeiro/pulse-infra
-          token: ${{ secrets.PULSE_INFRA_PAT }}
-          path: pulse-infra
+          repository: felipe-e-ribeiro/tools-infra
+          token: ${{ secrets.TOOLS_INFRA_TOKEN }}
+          path: tools-infra
 
-      - name: Bump image tags no pulse-infra
+      - name: Bump image tags (tools/pulse/values.yaml)
         uses: mikefarah/yq@v4
         with:
           cmd: |
-            yq -i '.platform-chart.api.image.tag = "${{ steps.tag.outputs.sha }}"' pulse-infra/values.yaml
-            yq -i '.platform-chart.frontend.image.tag = "${{ steps.tag.outputs.sha }}"' pulse-infra/values.yaml
+            yq -i '.["platform-chart"].api.image.tag = "${{ steps.tag.outputs.sha }}"' tools-infra/tools/pulse/values.yaml
+            yq -i '.["platform-chart"].frontend.image.tag = "${{ steps.tag.outputs.sha }}"' tools-infra/tools/pulse/values.yaml
 
-      - name: Commit e push no pulse-infra
-        working-directory: pulse-infra
+      - name: Commit e push no tools-infra
+        working-directory: tools-infra
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add values.yaml
-          git diff --cached --quiet || git commit -m "chore: bump image tags to ${{ steps.tag.outputs.sha }}"
-          git push
+          git add tools/pulse/values.yaml
+          git diff --cached --quiet && { echo "Tag já atualizada"; exit 0; }
+          git commit -m "chore(pulse): bump image tags to ${{ steps.tag.outputs.sha }}"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "push recusado (outro CD gravou no tools-infra); rebase e nova tentativa"
+            git pull --rebase
+          done
+          exit 1

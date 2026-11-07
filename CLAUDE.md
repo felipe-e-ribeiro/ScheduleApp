@@ -12,20 +12,16 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
 - **Backend**: completo e testado (FastAPI + SQLModel + Alembic + Postgres).
 - **Frontend**: completo e testado (React + Vite + TS + Tailwind), rodando
   contra o backend real via Docker + navegador.
-- **Falta**: variáveis de produção do bot do Telegram; cadastrar os
-  secrets pendentes (`PULSE_INFRA_PAT` aqui, `HUB_DISPATCH_TOKEN` e
-  `SECRET_CONTENT_PULSE` no `pulse-infra`/`oks-personal-infra`); resolver
-  a `NetworkPolicy isolate-postgresql` que hoje bloqueia o pulse (ver
-  `pulse-infra/README.md`).
+- **Falta**: variáveis de produção do bot do Telegram.
 - **Este repo não tem mais `Chart.yaml`/`values.yaml`** (removidos) —
   fica só código + `Dockerfile`s + CI de imagem
   (`.github/workflows/build-and-push.yaml`, builda `pulse-api`/
-  `pulse-frontend` e comita a tag no repo `pulse-infra`, que precisou de
-  um PAT próprio: secret `PULSE_INFRA_PAT` aqui).
-- **Manifests Kubernetes**: vivem em
-  [`pulse-infra`](https://github.com/felipe-e-ribeiro/pulse-infra)
-  (gerado a partir do
-  [`app-infra-template`](https://github.com/felipe-e-ribeiro/app-infra-template)),
+  `pulse-frontend` e comita a tag em `tools-infra/tools/pulse/values.yaml`,
+  com o secret `TOOLS_INFRA_TOKEN` aqui: PAT fine-grained com escrita só
+  no `tools-infra`).
+- **Manifests Kubernetes**: vivem no monorepo
+  [`tools-infra`](https://github.com/felipe-e-ribeiro/tools-infra), pasta
+  `tools/pulse` (Application `pulse` criada pelo ApplicationSet do ArgoCD),
   consumindo o chart compartilhado
   [`platform-chart`](https://github.com/felipe-e-ribeiro/personal-charts)
   (já publicado no GHCR, `oci://ghcr.io/felipe-e-ribeiro/charts`).
@@ -37,7 +33,7 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
 - **Postgres: não é mais self-hosted** (decisão revertida — ver abaixo).
   Usa a instância já existente do `comprasweb-prod`, banco `pulse`
   dedicado, criado sozinho pelo backend no startup
-  (`backend/app/db_bootstrap.py`) — ver `pulse-infra/resources.yaml`.
+  (`backend/app/db_bootstrap.py`) — ver `tools-infra/tools/pulse/resources.yaml`.
 - Design visual (protótipo interativo, referência de estética/UX antes do
   React existir): https://claude.ai/code/artifact/289897bc-851b-4a7b-a62e-73077231f3c0
 
@@ -56,7 +52,7 @@ Dono/único usuário: Felipe. Uso pessoal, single-tenant, sem multiusuário.
   `comprasweb-prod`, banco `pulse` dedicado dentro dela. Evita subir mais
   um Postgres no cluster pessoal só pra esse app. Trade-off aceito:
   acopla o pulse ao ciclo de vida/credenciais daquele Postgres (ver
-  `pulse-infra/README.md` pra pendência de rede ainda em aberto).
+  `tools-infra/tools/pulse/README.md`).
 - **Confirmação tem dois caminhos** (mesma ação, credenciais diferentes):
   - Telegram → link com token HMAC assinado (`itsdangerous`), sem login.
   - Painel → sessão de admin (cookie), sem token — pra quando você já
@@ -157,14 +153,10 @@ frontend/src/
 
 1. Variáveis de produção do bot do Telegram (token/chat_id já testados
    manualmente em dev).
-2. Cadastrar os secrets pendentes: `PULSE_INFRA_PAT` aqui (PAT
-   fine-grained, escrita só no `pulse-infra`); `HUB_DISPATCH_TOKEN` no
-   `pulse-infra` (escrita/leitura de Actions só no `oks-personal-infra`);
-   `SECRET_CONTENT_PULSE` no `oks-personal-infra` (JSON dos segredos reais
-   — inclui a `DATABASE_URL` do Postgres compartilhado).
-3. Resolver a `NetworkPolicy isolate-postgresql` (gerida pelo
-   `checklist-compras-infra`) — hoje bloqueia o pulse por padrão, ajuste
-   adiado por decisão explícita (ver `pulse-infra/README.md`).
-4. Testar `backend/app/db_bootstrap.py` (criação automática do banco
+2. Secrets do app: ficam no OCI Vault (`pulse-app-secrets`), lidos pelo
+   ExternalSecret do `tools-infra/tools/pulse`. A `DATABASE_URL` aponta
+   pro Postgres compartilhado (CloudNativePG,
+   `postgres-rw.databases.svc.cluster.local`, banco `pulse`).
+3. Testar `backend/app/db_bootstrap.py` (criação automática do banco
    `pulse`) contra um Postgres real antes do primeiro deploy — só validado
    por leitura de código nesta sessão (Docker indisponível no ambiente).
